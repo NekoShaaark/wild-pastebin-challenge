@@ -1,65 +1,122 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState } from "react"
+import { FormTextarea } from "@/components/FormTextarea"
+import { useRouter } from "next/navigation"
+import { setReactDebugChannel } from "next/dist/server/dev/debug-channel"
+import { Button } from "@/components/ui/button"
+
+export default function HomePage() {
+  const [pasteBinContent, setPasteBinContent] = useState("")
+  const [error, setError] = useState(null) //STUB: could make this a toast notification instead
+  const router = useRouter()
+  let userId
+  let protectedBin
+  let binPassword
+  let expiresOn
+
+  //clipboard handling
+  //TODO: remove that annoying "paste" dialogue each time the user clicks button
+  const handlePasteFromClipboard = async (e) => {
+    e.preventDefault()
+    if(!navigator.clipboard?.readText){
+      setError("Your browser does not support copying from your clipboard.")
+      return
+    }
+
+    try{
+      const clipboardContent = await navigator.clipboard.readText()
+      if(!clipboardContent){ 
+        setError("Your clipboard is empty.") 
+        return 
+      }
+      setPasteBinContent((previousContent) => previousContent + clipboardContent)
+      setError(null)
+    } 
+    catch(error){
+      console.error(error)
+      setError("Couldn't read from the clipboard, please this website grant permission and try again.")
+    }
+  }
+
+  //clear content handling
+  const handleClearContent = async () => {
+    if(!pasteBinContent){ return }
+
+    try{ setPasteBinContent("") }
+    catch(error){
+      console.error("An error occured while trying to clear the content:", error)
+      setError("An error occured while trying to clear the content.")
+    }
+    setError(null)
+  }
+
+  //post content to bins api (/api/bins)
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if(pasteBinContent.trim().length < 1){
+      setError("Please enter at least 1 character.")
+      return
+    }
+    setError(null)
+
+    const pasteBinSubmission = {
+      userId,
+      pasteBinContent,
+      protectedBin,
+      binPassword,
+      expiresOn
+    }
+    
+    try {
+      const apiResult = await fetch('/api/bins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pasteBinSubmission)
+      })
+      const apiResultData = await apiResult.json()
+
+      //api responded with an error
+      if(!apiResult.ok){
+        setError(apiResultData.error)
+        return
+      }
+
+      console.log("final data", apiResultData)
+      router.push(`/${await apiResultData.binLink}`)
+    }
+    catch(error){
+      console.error(error)
+      setError('A network error occurred, please try again.')
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    //TODO: move all tailwind css from template to globals.css
+    <section className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-6">
+      <h2 className="mb-4 text-xl font-semibold">
+        New Paste
+      </h2>
+
+      <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-3">
+        <FormTextarea
+          placeholder="Paste your text here!"
+          value={pasteBinContent}
+          onChange={(e) => setPasteBinContent(e.target.value)}
+          maxLength={5000}
+          errorMessage={error}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+
+        <Button type="button" onClick={handlePasteFromClipboard}>Paste from clipboard</Button>
+        <Button type="button" onClick={handleClearContent}>Clear</Button>
+
+        <Button
+          type="submit"
+          className="w-full rounded-md bg-indigo-600 py-2 text-white hover:bg-indigo-700"
+        >
+          Create New Paste
+        </Button>
+      </form>
+    </section>
+  )
 }
