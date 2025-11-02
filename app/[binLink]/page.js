@@ -1,4 +1,5 @@
 import { getBinInDB } from "@/db/dbHandling"
+import { getTimeRemainingString } from "@/lib/timeHelpers"
 import { notFound } from "next/navigation"
 
 export default async function BinPage({ params }) {
@@ -9,7 +10,12 @@ export default async function BinPage({ params }) {
   const binInDB = await getBinInDB(binLink)
   if(!binInDB){ notFound() }
 
-  //TODO: handle expiration checking (either return to not found page, or add bin id to another db table)
+  //convert expiresOn date to timeRemaining string
+  let expirationString
+  if(binInDB.expiresOn){ expirationString = await getTimeRemainingString((binInDB.expiresOn).toISOString()) }
+
+  //handle expiration checking 
+  //TODO: either return to not found page, or add bin id to another db table (minus content)
   if(binInDB.expiresOn && new Date() > new Date(binInDB.expiresOn)) {
     return (
       <div className="p-8">
@@ -37,15 +43,13 @@ export default async function BinPage({ params }) {
 
       <div className="mt-4 text-sm text-gray-600">
         <p>
-          <strong>Created:</strong>{' '}
-          {new Date(binInDB.createdAt).toLocaleString()}
+          <strong>Created on: </strong>
+          {(binInDB.createdAt).toLocaleString()}
         </p>
-        {binInDB.expiresOn && (
-          <p>
-            <strong>Expires:</strong>{' '}
-            {new Date(binInDB.expiresOn).toLocaleString()}
-          </p>
-        )}
+        <p>
+          <strong>Expires in: </strong>
+          {binInDB.expiresOn ? `${expirationString} (${(binInDB.expiresOn).toLocaleString()})` : "Never"}
+        </p>
       </div>
     </div>
   )

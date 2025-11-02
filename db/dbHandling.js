@@ -24,6 +24,9 @@ export async function getBinInDB(binLink){
 
 export async function createBinInDB({ userId, pasteBinContent, protectedBin, binPassword, expiresOn }){
     const maxRetries = 5
+    let expiresOnDate = null
+    if(expiresOn){ expiresOnDate = new Date(expiresOn) }
+    
     for(let attempt=0; attempt < maxRetries; ++attempt){
         const binLink = nanoId()
         try{
@@ -35,7 +38,7 @@ export async function createBinInDB({ userId, pasteBinContent, protectedBin, bin
                     protectedBin,
                     binPassword,
                     binLink,
-                    expiresOn
+                    expiresOn: expiresOnDate
                 })
                 .returning()
                 .execute()

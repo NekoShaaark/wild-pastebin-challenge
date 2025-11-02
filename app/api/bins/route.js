@@ -19,7 +19,7 @@ export async function POST(request) {
     pasteBinContent,
     protectedBin,
     binPassword,
-    expiresOn,
+    expiresOn
   } = newBinData
 
   if(!pasteBinContent){

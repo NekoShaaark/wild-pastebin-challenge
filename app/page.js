@@ -1,19 +1,39 @@
 "use client"
 
 import { useState } from "react"
-import { FormTextarea } from "@/components/FormTextarea"
 import { useRouter } from "next/navigation"
-import { setReactDebugChannel } from "next/dist/server/dev/debug-channel"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { ChevronDownIcon, Square, SquareCheck, Trash } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { isBefore } from "date-fns"
+import { Toggle } from "@/components/ui/toggle"
+import { getTimeRemainingString } from "@/lib/timeHelpers"
 
 export default function HomePage() {
   const [pasteBinContent, setPasteBinContent] = useState("")
+  const [disableClear, setDisableClear] = useState(true)
   const [error, setError] = useState(null) //STUB: could make this a toast notification instead
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(null) //this is referenced when reverting "never expires" to actual selectedDate
+  const [selectedDateHolder, setSelectedDateHolder] = useState(null) //this holds the state of the selectedDate (null, or actual selectedDate)
+  const [expirationDateText, setExpirationDateText] = useState("Never expires.") //just for displaying string of when the expiration date is
+  const [isExpirationDateEnabled, setIsExpirationDateEnabled] = useState(false)
   const router = useRouter()
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
   let userId
   let protectedBin
   let binPassword
-  let expiresOn
+
+  const handlePasteBinContentChange = async (content) => {
+    setPasteBinContent(content)
+
+    if(!content){ setDisableClear(true); return }
+    setDisableClear(false)
+  }
 
   //clipboard handling
   //TODO: remove that annoying "paste" dialogue each time the user clicks button
@@ -32,10 +52,11 @@ export default function HomePage() {
       }
       setPasteBinContent((previousContent) => previousContent + clipboardContent)
       setError(null)
+      setDisableClear(false)
     } 
     catch(error){
       console.error(error)
-      setError("Couldn't read from the clipboard, please this website grant permission and try again.")
+      setError("Couldn't read from the clipboard, please grant this website permission and try again.")
     }
   }
 
@@ -49,6 +70,31 @@ export default function HomePage() {
       setError("An error occured while trying to clear the content.")
     }
     setError(null)
+    setDisableClear(true)
+  }
+
+  //handle selected date
+  const handleSelectedDateChange = async (newDate) => {
+    if(!newDate){ 
+      setExpirationDateText("Never expires.")
+      setSelectedDate(null)
+      return 
+    }
+    
+    setSelectedDate(newDate)
+    setSelectedDateHolder(newDate)
+    let timeRemainingString = await getTimeRemainingString(newDate)
+    setExpirationDateText(`Expires in ${timeRemainingString}.`)
+  }
+
+  //handle paste expiration toggle
+  async function handlePasteExpirationEnabled(isEnabled){
+    if(isEnabled){ handleSelectedDateChange(selectedDate) }
+    else{
+      setExpirationDateText("Never expires.")
+      setSelectedDateHolder(null)
+    }
+    setIsExpirationDateEnabled(isEnabled)
   }
 
   //post content to bins api (/api/bins)
@@ -65,7 +111,7 @@ export default function HomePage() {
       pasteBinContent,
       protectedBin,
       binPassword,
-      expiresOn
+      expiresOn: selectedDateHolder
     }
     
     try {
@@ -92,31 +138,79 @@ export default function HomePage() {
   }
 
   return (
-    //TODO: move all tailwind css from template to globals.css
-    <section className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-6">
       <h2 className="mb-4 text-xl font-semibold">
         New Paste
       </h2>
 
       <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-3">
-        <FormTextarea
-          placeholder="Paste your text here!"
-          value={pasteBinContent}
-          onChange={(e) => setPasteBinContent(e.target.value)}
-          maxLength={5000}
-          errorMessage={error}
-        />
+        {/* text typing area */}
+        <section className="space-y-1">
+          <Textarea
+            placeholder="Paste your text here!"
+            value={pasteBinContent}
+            onChange={(e) => handlePasteBinContentChange(e.target.value)}
+            className="w-full min-h-[120px]"
+          />
 
-        <Button type="button" onClick={handlePasteFromClipboard}>Paste from clipboard</Button>
-        <Button type="button" onClick={handleClearContent}>Clear</Button>
+          {/* error dialogue */}
+          {/* TODO: change to toast notification */}
+          {error && (
+            <p className="mt-1 text-sm text-red-600">{error}</p>
+          )}
+        </section>
 
+        {/* paste from clipboard & clear buttons */}
+        <div className="flex justify-between">
+          <Button type="button" className="cursor-pointer" onClick={handlePasteFromClipboard}>Paste from clipboard</Button>
+          <Button type="button" className="cursor-pointer" disabled={disableClear} variant="destructive" onClick={handleClearContent}>Clear <Trash/></Button>
+        </div>
+
+        {/* expiration date selector */}
+        <div className="flex flex-row justify-between gap-3">
+          
+          <Toggle className="px-1 cursor-pointer" onClick={() => handlePasteExpirationEnabled(!isExpirationDateEnabled)}>
+            {isExpirationDateEnabled ? <SquareCheck/> : <Square/>}
+            Paste Expiration
+          </Toggle>
+
+          {/* only show calendar if toggled on */}
+          {isExpirationDateEnabled && 
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" id="date" className="w-36 justify-between font-normal cursor-pointer">
+                  {selectedDate ? selectedDate.toLocaleDateString() : "Select a Date"}
+                  <ChevronDownIcon />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  captionLayout="dropdown"
+                  disabled={(day) => isBefore(day, currentDate)}
+                  defaultMonth={selectedDate}
+                  fromYear={currentYear}
+                  toYear={currentYear + 1}
+                  onSelect={(date) => {
+                    handleSelectedDateChange(date)
+                    setCalendarOpen(false)
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          }
+          <Label className="px-1 ml-auto">{expirationDateText}</Label>
+        </div>
+
+        {/* final submittion/creation button */}
         <Button
           type="submit"
-          className="w-full rounded-md bg-indigo-600 py-2 text-white hover:bg-indigo-700"
+          className="w-full cursor-pointer rounded-md bg-indigo-600 py-2 text-white hover:bg-indigo-700"
         >
           Create New Paste
         </Button>
       </form>
-    </section>
+    </div>
   )
 }
