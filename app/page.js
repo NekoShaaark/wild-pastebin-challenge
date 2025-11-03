@@ -13,6 +13,7 @@ import { Toggle } from "@/components/ui/toggle"
 import { getTimeRemainingString } from "@/lib/timeHelpers"
 import { Input } from "@/components/ui/input"
 import { generatePassword } from "@/lib/passwordHandler"
+import { toast } from "sonner"
 
 export default function HomePage() {
   const [pasteBinContent, setPasteBinContent] = useState("")
@@ -54,6 +55,7 @@ export default function HomePage() {
       setPasteBinContent((previousContent) => previousContent + clipboardContent)
       setError(null)
       setDisableClear(false)
+      toast.info("Pasted from Clipboard")
     } 
     catch(error){
       console.error(error)
@@ -72,6 +74,7 @@ export default function HomePage() {
     }
     setError(null)
     setDisableClear(true)
+    toast.error("Cleared pasted Content")
   }
 
   //handle selected date
@@ -172,7 +175,7 @@ export default function HomePage() {
 
         {/* paste from clipboard & clear buttons */}
         <div className="flex justify-between">
-          <Button type="button" className="cursor-pointer" onClick={handlePasteFromClipboard}>Paste from clipboard</Button>
+          <Button type="button" className="cursor-pointer" onClick={handlePasteFromClipboard}>Paste from Clipboard</Button>
           <Button type="button" className="cursor-pointer" disabled={disableClear} variant="destructive" onClick={handleClearContent}>Clear <Trash/></Button>
         </div>
 

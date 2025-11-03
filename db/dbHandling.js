@@ -22,6 +22,20 @@ export async function getBinInDB(binLink){
     return null
 }
 
+export async function removeBinInDB(binLink){
+    if(binLink != null){
+        let pasteBinToRemove = getBinInDB(binLink)
+        if(pasteBinToRemove){
+            await db
+                .delete(storedBinsTable)
+                .where(eq(storedBinsTable.binLink, binLink))
+            return true
+        }
+    }
+    //nothing was removed
+    return false
+}
+
 export async function createBinInDB({ userId, pasteBinContent, protectedBin, binPassword, expiresOn }){
     const maxRetries = 5
     let expiresOnDate = null

@@ -1,4 +1,5 @@
 import PasswordInput from "@/components/custom/passwordInput"
+import PastebinName from "@/components/custom/pastebinName"
 import { getTimeRemainingString } from "@/lib/timeHelpers"
 import { notFound } from "next/navigation"
 
@@ -41,7 +42,7 @@ export default async function BinPage({ params, searchParams }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-6">
       {/* TODO: add custom name here */}
-      <h1 className="mb-4 text-xl font-semibold">Paste Name here</h1>
+      <PastebinName/>
 
       <pre className="bg-gray-200 max-w-lvw p-4 rounded-2xl whitespace-pre-wrap wrap-break-word">
         {apiResultData.pasteBinContent}
