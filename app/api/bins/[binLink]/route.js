@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getBinInDB } from '@/db/dbHandling'
 
-export async function GET({ params }) {
+export async function GET(req, { params }) {
   const { binLink } = await params
 
   try {
@@ -18,15 +18,11 @@ export async function GET({ params }) {
 
     //expiration checking
     //status code 410 => bin has expired (existed before, but not anymore)
-    if(binInDB.expiresOn){
-      const currentDate = new Date()
-      const expirationDate = new Date(binInDB.expiresOn)
-      if(currentDate > expirationDate){
-        return NextResponse.json(
-          { error: 'The pastebin you are trying to access has expired' },
-          { status: 410 }
-        )
-      }
+    if(binInDB.expiresOn && new Date() > new Date(binInDB.expiresOn)){
+      return NextResponse.json(
+        { error: "The pastebin you are trying to access has expired or doesn't exist" },
+        { status: 410 }
+      )
     }
 
     //TODO: if bin is protected, ask for password, and query with database
@@ -37,8 +33,10 @@ export async function GET({ params }) {
     //status code 200 => found bin in database
     return NextResponse.json(
       {
-        content: binInDB.pasteBinContent,
-        link: binInDB.binLink,
+        pasteBinContent: binInDB.pasteBinContent,
+        protectedBin: binInDB.protectedBin,
+        binPassword: binInDB.binPassword,
+        binLink: binInDB.binLink,
         createdAt: binInDB.createdAt,
         expiresOn: binInDB.expiresOn
       },
