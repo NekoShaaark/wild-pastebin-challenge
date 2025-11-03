@@ -11,6 +11,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { isBefore } from "date-fns"
 import { Toggle } from "@/components/ui/toggle"
 import { getTimeRemainingString } from "@/lib/timeHelpers"
+import { Input } from "@/components/ui/input"
+import { generatePassword } from "@/lib/passwordHandler"
 
 export default function HomePage() {
   const [pasteBinContent, setPasteBinContent] = useState("")
@@ -21,12 +23,11 @@ export default function HomePage() {
   const [selectedDateHolder, setSelectedDateHolder] = useState(null) //this holds the state of the selectedDate (null, or actual selectedDate)
   const [expirationDateText, setExpirationDateText] = useState("Never expires.") //just for displaying string of when the expiration date is
   const [isExpirationDateEnabled, setIsExpirationDateEnabled] = useState(false)
+  const [isPasswordEnabled, setIsPasswordEnabled] = useState(false)
+  const [passwordContent, setPasswordContent] = useState("")
   const router = useRouter()
   const currentDate = new Date()
   const currentYear = currentDate.getFullYear()
-  let userId
-  let protectedBin
-  let binPassword
 
   const handlePasteBinContentChange = async (content) => {
     setPasteBinContent(content)
@@ -97,6 +98,13 @@ export default function HomePage() {
     setIsExpirationDateEnabled(isEnabled)
   }
 
+  //handle password toggle
+  async function handlePasswordEnabled(isEnabled) {
+    const newPassword = generatePassword()
+    setPasswordContent(newPassword)
+    setIsPasswordEnabled(isEnabled)
+  }
+
   //post content to bins api (/api/bins)
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -104,13 +112,17 @@ export default function HomePage() {
       setError("Please enter at least 1 character.")
       return
     }
+    if(isPasswordEnabled && passwordContent.length < 8){
+      setError("Please enter at least 8 characters for the password.")
+      return
+    }
     setError(null)
 
     const pasteBinSubmission = {
-      userId,
+      userId: "user123",
       pasteBinContent,
-      protectedBin,
-      binPassword,
+      protectedBin: isPasswordEnabled,
+      binPassword: passwordContent,
       expiresOn: selectedDateHolder
     }
     
@@ -139,26 +151,24 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-6">
-      <h2 className="mb-4 text-xl font-semibold">
-        New Paste
-      </h2>
+      <h1 className="mb-4 text-xl font-semibold">New Paste</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-3">
         {/* text typing area */}
-        <section className="space-y-1">
+        <div className="space-y-1">
           <Textarea
             placeholder="Paste your text here!"
             value={pasteBinContent}
             onChange={(e) => handlePasteBinContentChange(e.target.value)}
-            className="w-full min-h-[120px]"
+            className="w-full min-h-[120px] focus:bg-gray-200"
           />
 
           {/* error dialogue */}
           {/* TODO: change to toast notification */}
           {error && (
-            <p className="mt-1 text-sm text-red-600">{error}</p>
+            <strong className="mt-1 text-sm text-red-600">{error}</strong>
           )}
-        </section>
+        </div>
 
         {/* paste from clipboard & clear buttons */}
         <div className="flex justify-between">
@@ -201,6 +211,23 @@ export default function HomePage() {
             </Popover>
           }
           <Label className="px-1 ml-auto">{expirationDateText}</Label>
+        </div>
+
+        {/* password selector */}
+        <div className="flex flex-row justify-between gap-3">
+          <Toggle className="px-1 cursor-pointer" onClick={() => handlePasswordEnabled(!isPasswordEnabled)}>
+            {isPasswordEnabled ? <SquareCheck/> : <Square/>}
+            Password
+          </Toggle>
+          {isPasswordEnabled &&
+            <Input 
+              className="w-auto focus:bg-gray-200"
+              value={passwordContent}
+              placeholder="Password"
+              maxLength={12}
+              onChange={(e) => setPasswordContent(e.target.value)}
+            />
+          }
         </div>
 
         {/* final submittion/creation button */}

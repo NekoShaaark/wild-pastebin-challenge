@@ -39,6 +39,17 @@ export async function POST(request) {
       expiresOn
     })
 
+    //will only return if the bin is protected instead of revealing all content
+    if(newBin.protectedBin){
+      return NextResponse.json(
+        {
+          binLink: newBin.binLink,
+          protectedBin: newBin.protectedBin
+        },
+        { status: 201 }
+      )
+    }
+
     //status code 201 => successfully created bin in database
     return NextResponse.json(
       {
@@ -46,7 +57,8 @@ export async function POST(request) {
         userId: newBin.userId,
         binLink: newBin.binLink,
         pasteBinContent: newBin.pasteBinContent,
-        binLink: newBin.binLink,
+        protectedBin: newBin.protectedBin,
+        binPassword: newBin.binPassword,
         createdAt: newBin.createdAt,
         expiresOn: newBin.expiresOn
       },
